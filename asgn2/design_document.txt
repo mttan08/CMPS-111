@@ -1,0 +1,62 @@
+Benjamin D Trotter
+Kenny Luu
+Matthew Tan
+Jose Dario Torres
+
+scheduler design document
+
+A. Description
+In this assignment, we modified the scheduler for FreeBSD. We split the work into 4 cases:
+1) Case 0: FreeBSD default FIFO queue scheduler
+2) Case 1: Priority queue scheduling.
+3) Case 2: Splatter scheduling
+4) Case 3: Combined priority queue and splatter scheduling.
+A shell script was written to allow user to specify one of the four cases.
+A benchmark shell script was also written.
+
+B. Design
+Case 0: no changes were made
+Case 1: check whether thread is from an user process, add thread to priority queue
+Case 2: check whether thread is from an user process, 
+    assign tickets randomly and add the thread to FIFO queue
+Case 3: check whether thread is from an user process,
+assign tickets randomly to thread and add to priority queue
+
+C. Algorithms
+Files changed: kern_switch.c
+Case 1: priority scheduling
+New function added to insert a thread to runq based on priority:
+First check if a thread is a kernel thread. If it is a kernel thread,
+push the thread to queue which is a FIFO queue. Otherwise, add thread to its
+queue which is a priority queue.
+int isKernThread = realPri < 48 || (realPri < 120 && realPri > 79);
+Code:
+// void rqhead_prio_insert(struct rqhead *rqh, struct thread *td);
+struct thread *i_td;
+    TAILQ_FOREACH(i_td, rqh, td_runq) {
+        if (i_td->td_priority >= td->td_priority) {
+            TAILQ_INSERT_BEFORE(i_td, td, td_runq);
+            return;
+        }
+    }
+
+Case 2: Splatter scheduling
+New function added to generate random tickets and added user thread to FIFO queue:
+int
+getRandUserQueue(void)
+{
+    int r = random() % 168;
+    if (r < 48) r += 48;
+    if (r >= 80 && r < 120) r += 40;
+
+    return r;
+}
+
+Case 3: Combined Shcheduling
+The priority is calculated by splatter scheduling. The thread is added to the
+run queue which is a priority queue.
+
+
+D. Challenges
+The most challenging part is to compile and rebuild the kernel. Every time
+a change is made, we had to recompile and install the kernel.
