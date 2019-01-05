@@ -1,0 +1,62 @@
+Benjamin D Trotter
+Kenny Luu
+Matthew Tan
+Jose Dario Torres
+
+Paging Design Document
+
+A.Goal
+In this assignment, we modified the FreeBSD pageout policy to operate as a fifO queue, rather than second chance clock. The purpose for this exercise was to compare the FreeBSD's second chance to our fifo policy.
+
+B.Design
+For the sake of simplicity during benchmarking, we split the work into two cases:
+   1.) Case 0: FreeBSD default second chance pageout
+   2.) Case 1: fifo pageout
+Though it was not required, shell script was written to switch between the two modes, thus avoidiing reinstalling the kernel.
+Additional shell scripts were added to test and collect data on paging
+The general approach for the fifo queue, so as to avoid making too many changes, was to use the already present active, inactive, and chached queues in a fifo manner. To do so:
+   I)   Page insetion remaind the same (i.e. insetion into the back of a queue)
+   II)  Switching from active to inactive, pages were selected from the head of the active queue
+   III) Freeing pages from the inactive queue was also done from the head
+Note; for (II) & (III), requeueing is skipped to keep the queues original order
+Finally, various print statments and variables were added through vm_pageout.c to keep track of statistics
+
+C.Implementation
+
+/*****************/
+vm_pageout.c
+/*****************/
+
+Variables added (statistics):
+   pages_queued_for_flush
+   pages_moved_to_cache
+   pages_in_inactive_queue
+   pages_in_active_queue
+   pages_moved_to_higher_queue
+   pages_moved_to_lower_queue
+
+Fifo algorithm (psuedocode):
+   var vm_pagemode
+
+   procedure vm_pageout_scan
+            ...
+       for page in inactive_queue do
+               ...
+          if vm_pagemode = 1 then
+             free_page
+          end if
+       end for
+            ...
+       if vm_pagemode = 1 then
+          deactivate page
+       end if
+   end procedure
+
+NOTE: 
+   vm_pagemode = 0: default paging
+   vm_pagemode = 1: fifo paging
+
+D.Challenges
+The only real challenges were:
+   setting everything up (i.e. writing the shell scripts, etc.)
+   rebuildng and installing the kernel whenever changes were made
